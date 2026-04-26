@@ -583,8 +583,8 @@ function listenMatchConfig() {
     const d = snap.val(); if (d) Scene?.applyLight(d);
   });
 
-  // 👇 ✨ FIX: El motor 3D DEBE saber cuándo activaste la inversión en el panel
-  onValue(ref(DB, `${BASE}/match_config/campoInvertido`), snap => {
+// 👇 ✨ FIX: Escuchando la ruta correcta (config) donde el Panel guarda el estado
+  onValue(ref(DB, `${BASE}/config/campoInvertido`), snap => {
     window._campoInvertido = snap.val() === true;
   });
   // 👆 ====================================================================== 👆

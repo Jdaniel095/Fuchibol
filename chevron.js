@@ -268,7 +268,7 @@ if (distAlTexto < 300) {
       cacheObj.element = new Image();
       cacheObj.element.crossOrigin = 'anonymous';
       cacheObj.element.onload = () => { ovTex.needsUpdate = true; };
-      cacheObj.element.src = `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
+      cacheObj.element.src = url;
     }
 
     if (cacheObj.element && cacheObj.element.complete) {

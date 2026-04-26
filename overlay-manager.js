@@ -102,8 +102,7 @@ function drawPlayerCircle(url, cx, cy, r, borderColor, cardScale = 1.0) {
     if (!url) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = `https://wsrv.nl/?url=${encodeURIComponent(url)}`;
-    
+    img.src = url;
     img.onload = () => {
       ctx.save();
       
