@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Campo — OBS Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- THREE.JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- MÓDULOS DEL CAMPO -->
+<script src="scene.js"></script>
+<script src="field.js"></script>
+<script src="objects.js"></script>
+<script src="animacion.js"></script>
+<script src="ball-trajectory.js"></script>
+<script src="pitch_paint.js"></script>
+<script src="pitch-cards.js"></script>  <script src="radar-cones.js"></script> 
+<script src="chevron.js"></script>
+<script src="overlay-manager.js"></script>
+<script src="offside-line.js"></script>
+<script src="hologram-label.js"></script>
+<script type="module" src="firebase.js"></script>
+
+<script>
+  const clock = new THREE.Clock();
+
+  (function loop() {
+    requestAnimationFrame(loop);
+    
+    const dt = clock.getDelta();
+    const t = clock.getElapsedTime();
+
+    Scene.updateCamera();
+
+    if (typeof Animacion !== 'undefined') Animacion.update();
+    if (typeof PitchPaint !== 'undefined') PitchPaint.update(dt);
+    if (typeof PitchCards !== 'undefined') PitchCards.update(dt); // ✨ NUEVA LÍNEA
+    if (typeof Chevron !== 'undefined') Chevron.update(dt, t);
+    if (typeof OverlayManager !== 'undefined') OverlayManager.update(dt);
+    if (typeof Radar3D !== 'undefined') Radar3D.update();
+    if (typeof OffsideLine !== 'undefined') OffsideLine.update(dt, t);
+    if (typeof HologramLabel !== 'undefined') HologramLabel.update(dt);
+
+    Scene.renderer.render(Scene.scene, Scene.camera);
+  })();
+</script>
+
+</body>
+</html>
