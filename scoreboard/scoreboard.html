@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scoreboard OBS</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;0,900;1,800;1,900&family=Barlow:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    background: transparent;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── BANNER ── */
+  #sb {
+    display: flex;
+    align-items: center; /* Centrado vertical para permitir desbordes */
+    width: 860px;
+    height: 100px; /* Área más alta para el cartel emergente */
+    filter: drop-shadow(0 8px 28px rgba(0,0,0,.9));
+    opacity: 1;
+    transition: opacity .55s ease, transform .55s cubic-bezier(.34,1.56,.64,1);
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+  #sb.show { opacity:1; transform:translateY(0); }
+
+  /* ── FLAGS (Escudos) ── */
+  .flag {
+    width: 74px; height: 72px; flex-shrink: 0;
+    overflow: hidden;
+    border-top: 2.5px solid #C9A84C;
+    border-bottom: 2.5px solid #C9A84C;
+    background: #d8d8d8;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .flag img { 
+    display: none; 
+    width: 100%; height: 100%; 
+    object-fit: contain; 
+    transform: scale(2); /* Mantiene los escudos al máximo tamaño */
+  }
+  .flag.fl {
+    border-left: 2.5px solid #C9A84C;
+    clip-path: polygon(14px 0%,100% 0%,100% 100%,14px 100%,0% 50%);
+  }
+  .flag.fr {
+    border-right: 2.5px solid #C9A84C;
+    clip-path: polygon(0% 0%,calc(100% - 14px) 0%,100% 50%,calc(100% - 14px) 100%,0% 100%);
+  }
+
+  /* ── WINGS (Cajas de Nombres) ── */
+  .wing {
+    flex: 1; min-width: 0; height: 72px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border-top: 2.5px solid #C9A84C;
+    border-bottom: 2.5px solid #C9A84C;
+    background: linear-gradient(180deg,#f6f5f1 0%,#eceae4 50%,#dddbd5 100%);
+    overflow: hidden;
+  }
+  .wing::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:42%;
+    background: linear-gradient(180deg,rgba(255,255,255,.55),transparent);
+  }
+  .team {
+    font-size: 24px; font-weight: 800;
+    letter-spacing: 3px; text-transform: uppercase;
+    position: relative; z-index: 2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 88%;
+  }
+  .wing.wl .team { color:#1A3A6B; }
+  .wing.wr .team { color:#1A6B3A; }
+
+  /* ── ✨ NUEVO: CENTRO 3D SUPERPUESTO (SHIELD) ── */
+  .shield {
+    flex-shrink: 0; 
+    width: 140px; /* Más ancho */
+    z-index: 30; /* Por encima de las alas */
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 -15px; /* Magia: Esto hace que se monte sobre los bordes de los nombres */
+    position: relative;
+  }
+
+  /* El cuerpo principal negro */
+  .shield-body {
+    width: 100%; 
+    height: 96px; /* Más alto que las alas (72px) para sobresalir arriba y abajo */
+    background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+    border: 3px solid #C9A84C; /* Borde dorado grueso */
+    border-radius: 8px; /* Bordes redondeados */
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+    z-index: 10;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.9), inset 0 2px 10px rgba(255,255,255,0.1);
+  }
+
+/* ── ✨ NUEVO: CARTEL ANIMADO DE TIEMPO AGREGADO ── */
+  .injury-box {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 54px; height: 32px;
+    margin-top: -48px; /* Se ancla exactamente al borde superior del cuadro negro */
+    transform: translate(-50%, 0); /* Escondido hacia abajo, detrás del negro */
+    background: #ffffff;
+    border: 2.5px solid #C9A84C;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding-top: 2px;
+    z-index: 5; /* Detrás del shield-body (que tiene z-index: 10) */
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .injury-box.show-injury {
+    transform: translate(-50%, -28px); /* Sube 28px para hacerse visible */
+  }
+.injury-txt {
+    color: #0f172a; /* ✨ Azul muy oscuro/Casi negro para contraste extremo */
+    font-weight: 900; 
+    font-size: 20px;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 5px; /* ✨ Da un pequeño respiro extra entre los caracteres */
+  }
+
+  /* ── VS ── */
+  .vs {
+    font-size: 44px; font-weight: 900; font-style: italic; line-height: 1;
+    background: linear-gradient(180deg,#F5E080,#C9A84C 45%,#8B6914);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,.8));
+    transition: opacity .35s ease;
+  }
+
+  /* ── SCORE BLOCK INTERNO ── */
+  .scorebox {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+    opacity: 0; transition: opacity .35s ease;
+  }
+  .scorebox.show-score { opacity: 1; }
+  
+  .timebar {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px; /* Pastilla redondeada moderna */
+    padding: 2px 12px 1px;
+    margin-bottom: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #ff3322; box-shadow: 0 0 6px #ff4433;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.15} }
+  
+  .clock-txt {
+    font-family: 'Barlow', sans-serif;
+    font-size: 16px; font-weight: 800; color: #fff; letter-spacing: 1.5px;
+  }
+  
+  .score-txt {
+    font-size: 46px; /* Números gigantes */
+    font-weight: 900; font-style: italic;
+    letter-spacing: 4px; line-height: 0.9; 
+    color: #ffffff;
+    text-shadow: 0px 4px 10px rgba(0,0,0,0.9), 0px 2px 3px rgba(0,0,0,0.9);
+  }
+</style>
+</head>
+<body>
+
+<div id="sb">
+  <div class="flag fl"><img id="img-home" src="" alt=""></div>
+
+  <div class="wing wl"><span class="team" id="name-home">LOCAL</span></div>
+
+  <div class="shield">
+    
+    <div id="injury-box" class="injury-box"><span id="injury-txt" class="injury-txt">+0</span></div>
+
+    <div class="shield-body">
+      <span class="vs" id="vs-txt">VS</span>
+      
+      <div class="scorebox" id="scorebox">
+        <div class="timebar">
+          <span class="dot"></span>
+          <span class="clock-txt" id="clock-el">00:00</span>
+        </div>
+        <span class="score-txt" id="score-el">0 – 0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="wing wr"><span class="team" id="name-away">VISITA</span></div>
+
+  <div class="flag fr"><img id="img-away" src="" alt=""></div>
+</div>
+
+<script type="module">
+import { initializeApp }             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const FB_CONFIG = {
+  apiKey:            "AIzaSyDAJrrAW3JMqGTLsOvv2eXKYNpfpMLJ-P8",
+  authDomain:        "proyecto-futbol-7c0cb.firebaseapp.com",
+  databaseURL:       "https://proyecto-futbol-7c0cb-default-rtdb.firebaseio.com",
+  projectId:         "proyecto-futbol-7c0cb",
+  storageBucket:     "proyecto-futbol-7c0cb.firebasestorage.app",
+  messagingSenderId: "840299316357",
+  appId:             "1:840299316357:web:1b0abe35b0a1bb18ec95ec"
+};
+
+const app = initializeApp(FB_CONFIG);
+const DB  = getDatabase(app);
+
+// ✨ DETECTOR DE ID RESILIENTE
+const getMatchId = () => {
+    const params = new URLSearchParams(window.location.search);
+    let id = params.get('id') || params.get('match');
+    if (id) return id;
+    const hash = window.location.hash.substring(1);
+    if (hash && hash.startsWith('match_')) return hash;
+    return 'current_match';
+};
+
+const MATCH = getMatchId();
+const BASE  = `matches_list/${MATCH}`;
+console.log(`📡 Conectado al partido: ${MATCH}`);
+
+// ── ESTADO LOCAL ──────────────────────────────────────────────────────
+const S = {
+  mode: 'preview',
+  scoreHome: 0, scoreAway: 0,
+  prevMode: ''
+};
+
+// ── FUNCIONES DE RELOJ Y TIEMPO AGREGADO ──────────────────────────────
+function syncClock(data) {
+  if (!data) return;
+  let timeString = "00:00";
+
+  if (typeof data === 'string') {
+      timeString = data;
+  } else if (typeof data === 'object') {
+      timeString = data.str || "00:00";
+  }
+
+  const el = document.getElementById('clock-el');
+  if (el) el.textContent = timeString;
+}
+
+// ✨ FIX: Función exclusiva para el Cartel (ya no depende del Reloj)
+function syncInjuryTime(value) {
+  const injuryTime = parseInt(value) || 0;
+  const injBox = document.getElementById('injury-box');
+  const injTxt = document.getElementById('injury-txt');
+  
+  if (injBox && injTxt) {
+      if (injuryTime > 0) {
+          injTxt.textContent = '+' + injuryTime;
+          injBox.classList.add('show-injury');
+      } else {
+          injBox.classList.remove('show-injury');
+      }
+  }
+}
+
+// ── DIBUJAR MARCADOR ──────────────────────────────────────────────────
+function render() {
+  document.getElementById('score-el').textContent = `${S.scoreHome} – ${S.scoreAway}`;
+  if (S.mode === S.prevMode) return;
+  S.prevMode = S.mode;
+
+  const vsEl  = document.getElementById('vs-txt');
+  const scBox = document.getElementById('scorebox');
+  const isLive = S.mode === 'live';
+
+  if (isLive) {
+    vsEl.style.opacity = '0';
+    setTimeout(() => { vsEl.style.display = 'none'; }, 380);
+    scBox.style.display = 'flex';
+    setTimeout(() => scBox.classList.add('show-score'), 50);
+  } else {
+    scBox.classList.remove('show-score');
+    setTimeout(() => { scBox.style.display = 'none'; }, 380);
+    vsEl.style.display = 'block';
+    setTimeout(() => { vsEl.style.opacity = '1'; }, 50);
+  }
+}
+
+function updateImage(elementId, url) {
+    const img = document.getElementById(elementId);
+    if (img && url) { img.src = url; img.style.display = 'block'; }
+}
+
+// ── LISTENERS DE FIREBASE ─────────────────────────────────────────────
+
+// ✨ NUEVA LÓGICA INTELIGENTE PARA MOSTRAR "VS" o MARCADOR
+function evaluarModoVS(clockData) {
+    // 1. Detectar si el reloj está en 00:00
+    let isClockZero = true;
+    if (typeof clockData === 'string') {
+        isClockZero = (clockData === "00:00");
+    } else if (clockData && typeof clockData === 'object') {
+        isClockZero = (clockData.str === "00:00" || (clockData.min === 0 && clockData.sec === 0));
+    }
+
+    // 2. Si ya hay goles (aunque el reloj no haya iniciado), mostramos marcador
+    if (S.scoreHome > 0 || S.scoreAway > 0) {
+        S.mode = 'live';
+    } 
+    // 3. Si el reloj ya avanzó (> 00:00), mostramos marcador
+    else if (!isClockZero) {
+        S.mode = 'live';
+    } 
+    // 4. Si no hay goles y el reloj sigue en 00:00, mantenemos el "VS"
+    else {
+        S.mode = 'preview';
+    }
+    render();
+}
+
+onValue(ref(DB, `${BASE}/state`), snap => {
+  const d = snap.val(); if (!d) return;
+  
+  if (d.score) {
+    S.scoreHome = d.score.home ?? S.scoreHome;
+    S.scoreAway = d.score.away ?? S.scoreAway;
+  }
+  if (d.clock) syncClock(d.clock);
+  
+  // ✨ FIX: Leemos el injury_time que es "hermano" de clock en la base de datos
+  syncInjuryTime(d.injury_time);
+
+  // ✨ Evaluamos el modo de forma inteligente basándonos en el reloj
+  evaluarModoVS(d.clock);
+});
+
+onValue(ref(DB, `${BASE}/teams`), snap => {
+  const d = snap.val(); if (!d) return;
+  if (d.home?.name) document.getElementById('name-home').textContent = d.home.name;
+  if (d.away?.name) document.getElementById('name-away').textContent = d.away.name;
+  if (d.home?.logo) updateImage('img-home', d.home.logo);
+  if (d.away?.logo) updateImage('img-away', d.away.logo);
+});
+
+onValue(ref(DB, `${BASE}/state/score`), snap => {
+  const d = snap.val(); if (!d) return;
+  S.scoreHome = d.home ?? S.scoreHome;
+  S.scoreAway = d.away ?? S.scoreAway;
+  
+  // Si alguien hace gol de vestuario (segundo 0), forzamos el marcador
+  if (S.scoreHome > 0 || S.scoreAway > 0) {
+      S.mode = 'live';
+  }
+  render();
+});
+
+onValue(ref(DB, `${BASE}/state/clock`), snap => {
+  const v = snap.val();
+  if (v) {
+      syncClock(v); 
+      // ✨ Si detecta que le diste 'Play' al reloj, apaga el VS y muestra los números
+      evaluarModoVS(v); 
+  }
+});
+
+// ✨ FIX: Agregamos un listener exclusivo para el tiempo agregado por si se envía de forma aislada
+onValue(ref(DB, `${BASE}/state/injury_time`), snap => {
+  syncInjuryTime(snap.val()); 
+});
+
+onValue(ref(DB, `${BASE}/scoreboard`), snap => {
+  const d = snap.val(); if (!d) return;
+  const sb = document.getElementById('sb');
+  if (typeof d.visible === 'boolean') sb.classList.toggle('show', d.visible);
+  if (d.mode === 'live' || d.mode === 'preview') S.mode = d.mode;
+  if (typeof d.score_home === 'number') S.scoreHome = d.score_home;
+  if (typeof d.score_away === 'number') S.scoreAway = d.score_away;
+  if (d.clock) syncClock(d.clock);
+  if (d.name_home) document.getElementById('name-home').textContent = d.name_home;
+  if (d.name_away) document.getElementById('name-away').textContent = d.name_away;
+  if (d.logo_home) updateImage('img-home', d.logo_home);
+  if (d.logo_away) updateImage('img-away', d.logo_away);
+  render();
+});
+
+setTimeout(() => document.getElementById('sb').classList.add('show'), 300);
+</script>
+</body>
+</html>
