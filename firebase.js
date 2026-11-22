@@ -41,6 +41,7 @@ window._equipoOffside = ''; // ✨ NUEVO: Memoria del equipo en Offside
 window._cachedTeamHome = '';
 window._cachedTeamAway = '';
 window._textoZombieSuprimido = '';
+window._balonOcultoManual = false;
 let _lastChevronState = null; 
 
 function aplicarEstadoChevron() {
@@ -352,8 +353,70 @@ if ([401, 402, 403, 404, 405].includes(typeid)) {
             
         case 401: OverlayManager.showCorner(ex.player||'', d.team||'', ex.detail||'', ex.count||''); break;
 
+        // ✨ FIX: Faltaban estos 3 cases. Sin ellos, 601/602/603 llegaban a este
+        // listener (engine_3d/overlay) pero no disparaban ningún OverlayManager,
+        // dejando la exhibición dependiendo únicamente del listener de event_log.
+        // Ahora quedan simétricos a como ya funcionaba el 606.
+        case 603:
+            get(ref(DB, `${BASE}/state`)).then(sSnap => {
+                const st = sSnap.val() || {};
+                const scStr = `${st.score?.home||0} - ${st.score?.away||0}`;
+                const tHome = window._cachedTeamHome || st.team_home_name || d.teamHome || 'LOCAL';
+                const tAway = window._cachedTeamAway || st.team_away_name || d.teamAway || 'VISITA';
+
+                OverlayManager.showCoolingBreak(ex.detail || 'TIEMPO MUERTO', ex.time || d.time || '', scStr, tHome, tAway);
+            });
+            break;
+
+        case 601:
+            get(ref(DB, `${BASE}/state`)).then(sSnap => {
+                const st = sSnap.val() || {};
+                const scStr = `${st.score?.home||0} - ${st.score?.away||0}`;
+                const tHome = window._cachedTeamHome || st.team_home_name || d.teamHome || 'LOCAL';
+                const tAway = window._cachedTeamAway || st.team_away_name || d.teamAway || 'VISITA';
+                const equipo = (d.team === 'away') ? tAway : tHome;
+
+                const pIn    = ex.player_in?.name_short || '';
+                const pOut   = ex.player_out?.name_short || '';
+                const pPhoto = ex.photo || (ex.player_in && ex.player_in.photo) || '';
+
+                OverlayManager.showSubstitution(equipo, pIn, pOut, scStr, tHome, tAway, ex.time || d.time || '', pPhoto);
+            });
+            break;
+
+case 602:
+            get(ref(DB, `${BASE}/state`)).then(sSnap => {
+                const st = sSnap.val() || {};
+                const scStr = `${st.score?.home||0} - ${st.score?.away||0}`;
+                const tHome = window._cachedTeamHome || st.team_home_name || d.teamHome || 'LOCAL';
+                const tAway = window._cachedTeamAway || st.team_away_name || d.teamAway || 'VISITA';
+                const equipo = (d.team === 'away') ? tAway : tHome;
+
+                // 👇 REEMPLAZA ESTAS DOS LÍNEAS 👇
+                const pName  = ex.name_short || ex.nombre || ex.player || '';
+                const pPhoto = ex.photo || ex.foto_url || '';
+                // 👆 ========================== 👆
+
+                OverlayManager.showInjury(equipo, pName, scStr, tHome, tAway, ex.time || d.time || '', pPhoto);
+            });
+            break;
+
         case 604: resetScene(); break;
-        case 604: resetScene(); break;
+case 606:
+            get(ref(DB, `${BASE}/state`)).then(sSnap => {
+                const st = sSnap.val() || {};
+                const scStr = `${st.score?.home||0} - ${st.score?.away||0}`;
+                
+                // 👇 ✨ FIX: Usar las variables en caché correctas de tu archivo 👇
+                const tHome = window._cachedTeamHome || st.team_home_name || d.teamHome || 'LOCAL';
+                const tAway = window._cachedTeamAway || st.team_away_name || d.teamAway || 'VISITA';
+                // 👆 ========================================================= 👆
+                
+                if (typeof Animacion !== 'undefined' && Animacion.fadeBalon) Animacion.fadeBalon(0, 400);
+                
+                OverlayManager.showMatchPaused('EL RELOJ SIGUE CORRIENDO', d.time||'', scStr, tHome, tAway);
+            });
+            break;
         case 803: OverlayManager.showMomentum(ex.pctHome||50, ex.pctAway||50, d.teamHome||'', d.teamAway||'', ex.clock||''); break;
         case 902: resetScene(); break;
       }
@@ -526,13 +589,17 @@ function listenBall() {
             if (typeof OffsideLine !== 'undefined') OffsideLine.hide();
         }
 
-        // Limpiamos los overlays...
-        if (window._overlayActivo && !window._bloqueoSecuencia) {
-            window._overlayActivo = false;
-            aplicarEstadoChevron();
-            if (typeof OverlayManager !== 'undefined') OverlayManager.hide();
-            if (typeof Radar3D !== 'undefined') Radar3D.hide();
-        }
+if (window._overlayActivo && !window._bloqueoSecuencia) {
+                window._overlayActivo = false;
+                aplicarEstadoChevron();
+                if (typeof OverlayManager !== 'undefined') OverlayManager.hide();
+                if (typeof Radar3D !== 'undefined') Radar3D.hide();
+                
+                // ✨ FIX: Solo reaparece si NO se ocultó manualmente con el botón
+                if (typeof Animacion !== 'undefined' && Animacion.fadeBalon && !window._balonOcultoManual) {
+                     Animacion.fadeBalon(1, 300);
+                }
+            }
     }
 
     const coords = Array.isArray(d.ruta) ? d.ruta : [d];
@@ -660,7 +727,7 @@ function listenEventLog() {
         }
 
  // ✨ FIX: Ahora escuchamos 302, 303, 304, 405 (Offside), 601, 602, 603, 604 y 605
-if ([302, 303, 304, 405, 601, 602, 603, 604, 605].includes(typeid)) {
+if ([302, 303, 304, 405, 601, 602, 603, 604, 605, 606].includes(typeid)) {
             get(ref(DB, `${BASE}/state`)).then(sSnap => {
                 const st = sSnap.val() || {};
                 const scStr = `${st.score?.home||0} - ${st.score?.away||0}`;
@@ -731,6 +798,19 @@ if ([302, 303, 304, 405, 601, 602, 603, 604, 605].includes(typeid)) {
                     return;
                 }
 
+                // ── TYPEID 606: JUEGO PAUSADO ──
+                if (typeid === 606) {
+                    window._overlayActivo = true;
+                    // Apagamos Chevron y Balón
+                    if (typeof Chevron !== 'undefined') Chevron.setPossession(false);
+                    if (typeof Animacion !== 'undefined' && Animacion.fadeBalon) Animacion.fadeBalon(0, 400); 
+                    
+                    if (typeof OverlayManager !== 'undefined') {
+                        OverlayManager.showMatchPaused('EL RELOJ SIGUE CORRIENDO', d.time||d.minute||'', scStr, tHome, tAway);
+                    }
+                    return;
+                }
+
                 // ── TYPEID 601: SUSTITUCIÓN ──
                 if (typeid === 601) {
                     window._bloqueoSecuencia = true;
@@ -755,7 +835,7 @@ if ([302, 303, 304, 405, 601, 602, 603, 604, 605].includes(typeid)) {
                     }, 15000);
                 }
 
-                // ── TYPEID 602: LESIÓN / ATENCIÓN MÉDICA ──
+// ── TYPEID 602: LESIÓN / ATENCIÓN MÉDICA ──
                 if (typeid === 602) {
                     
                     if (esNuevoEvento) {
@@ -764,12 +844,17 @@ if ([302, 303, 304, 405, 601, 602, 603, 604, 605].includes(typeid)) {
                         if (typeof Animacion !== 'undefined' && Animacion.fadeBalon) Animacion.fadeBalon(0, 400); 
                     }
 
-                    const pName = (d.player && d.player.name_short) ? d.player.name_short : (typeof d.player === 'string' ? d.player : (d.name_short || ''));
-                    const pPhoto = (d.player && d.player.photo) ? d.player.photo : (d.photo || '');
+                    // 👇 REEMPLAZA ESTAS DOS LÍNEAS 👇
+                    const pName = (d.player && (d.player.name_short || d.player.nombre)) ? (d.player.name_short || d.player.nombre) : (typeof d.player === 'string' ? d.player : (d.name_short || d.nombre || ''));
+                    const pPhoto = (d.player && (d.player.photo || d.player.foto_url)) ? (d.player.photo || d.player.foto_url) : (d.photo || d.foto_url || '');
+                    // 👆 ========================== 👆
                     
                     if (typeof OverlayManager !== 'undefined') {
                         OverlayManager.showInjury(equipo, pName, scStr, tHome, tAway, d.time||d.minute||'', pPhoto);
                     }
+                    
+                    // Al tener el nombre correcto, ahora pasará el if (pName !== '') 
+                    // e iniciará el temporizador de 15.000 ms.
 
                     if (pName !== '') {
                         _lesionFase2Procesada = true; 
@@ -814,6 +899,28 @@ function listenTrajectory() {
   });
 }
 
+// ══════════════════════════════════════════════════════════════════
+// LISTENER: /engine_3d/ball_visible (Interruptor manual)
+// ══════════════════════════════════════════════════════════════════
+window._balonOcultoManual = false; 
+
+function listenBallVisibility() {
+  onValue(ref(DB, `${BASE}/engine_3d/ball_visible`), snap => {
+    const d = snap.val();
+    if (!d) return;
+
+    window._balonOcultoManual = !d.active;
+
+    if (!window._bloqueoSecuencia && typeof Animacion !== 'undefined' && Animacion.fadeBalon) {
+        Animacion.fadeBalon(d.active ? 1 : 0, 400);
+    }
+  });
+}
+
+// Llama a la función en tu arranque (donde llamas a listenTeamNames)
+listenBallVisibility();
+
+
 // ── INICIO ───────────────────────────────────────────────────────
 console.log(`🔥 Firebase conectado → ${BASE}`);
 listenBall();
@@ -824,3 +931,4 @@ listenOverlays();
 listenEventLog();
 listenTrajectory();
 listenTeamNames();
+listenBallVisibility();

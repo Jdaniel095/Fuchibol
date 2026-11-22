@@ -251,9 +251,16 @@ function _drawV2GoalCard(labelIcon, labelText, mainText, player, playerSub, scor
       }
 
       // 3. TEXTO GIGANTE "GOL"
+// 3. TEXTO GIGANTE "GOL"
       const heroY = y + 580;
       ctx.textAlign = 'center';
-      ctx.font = `900 520px ${FONT_BC}`;
+      
+      // ✨ FIX: Ajuste dinámico de tamaño para textos largos como "JUEGO DETENIDO"
+      let mainFontSize = 520;
+      if (mainText.length > 10) mainFontSize = 280;      // Para "JUEGO DETENIDO"
+      else if (mainText.length > 6) mainFontSize = 380;  // Para palabras medianas
+      
+      ctx.font = `900 ${mainFontSize}px ${FONT_BC}`;
       ctx.fillStyle = '#ffffff';
       ctx.letterSpacing = '-12px';
       ctx.shadowColor = colors.glow;
@@ -790,6 +797,21 @@ function showCoolingBreak(detail, timer, score, teamHome, teamAway) {
       // ✨ FIX: Inyectamos "TIEMPO DE HIDRATACIÓN" como teamAccion para que se ponga abajo a la izquierda
       _drawV2GoalCard('💧', 'Pausa', 'HIDRATACIÓN', '', detail, score, null, timer, colors, teamHome, teamAway, 'TIEMPO DE HIDRATACIÓN', 0.70);
   }
+
+
+  function showMatchPaused(detail, timer, score, teamHome, teamAway) {
+      const colors = { 
+          bgTop: 'rgba(71, 85, 105, 0.95)', // Pizarra/Gris Oscuro neutro
+          bgBot: 'rgba(15, 23, 42, 0.98)', 
+          accent: '#cbd5e1', // Gris Plata brillante
+          glow: 'rgba(203, 213, 225, 0.4)', 
+          avatarBorder: 'rgba(203, 213, 225, 0.5)', 
+          border: 'rgba(255, 255, 255, 0.12)' 
+      };
+      
+      _drawV2GoalCard('⏸', 'Pausa', 'JUEGO DETENIDO', '', detail, score, null, timer, colors, teamHome, teamAway, 'PARTIDO PAUSADO', 0.70);
+  }
+
   function showMomentum() {}
 
   // ══════════════════════════════════════════════════════════════════
@@ -822,7 +844,7 @@ function showCoolingBreak(detail, timer, score, teamHome, teamAway) {
     showPenalty, showPenaltyMissed, showSubstitution, showInjury, showCorner, 
     showOffside, showShot, showVAR, showHalftime, showFulltime, 
     showMatchSummary, showExtratime, showShootout, showInjuryTime, 
-    showCoolingBreak, showMomentum,
+    showCoolingBreak, showMomentum, showMatchPaused,
     hide, update
   };
 })();
